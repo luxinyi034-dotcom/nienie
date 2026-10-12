@@ -1,0 +1,12 @@
+{
+  "name": "捏捏乐",
+  "short_name": "捏捏乐",
+  "description": "史莱姆、捏捏、泡泡纸、波普解压玩具，带声音和震动反馈",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fdf1f6",
+  "theme_color": "#ff9ec7",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
