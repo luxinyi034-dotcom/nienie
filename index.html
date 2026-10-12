@@ -60,7 +60,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
 .chip i{width:18px;height:18px;border-radius:50%;display:block;box-shadow:inset -2px -3px 4px rgba(0,0,0,.18),inset 2px 2px 3px rgba(255,255,255,.6)}
 .chip.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
 .chip.act{background:var(--accent);color:var(--accent-ink);border-color:transparent;padding-left:14px;padding-right:14px}
-.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:6px 10px 10px;border-top:1px solid var(--line);background:var(--panel);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:6px 10px 10px;border-top:1px solid var(--line);background:var(--panel);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 .tab{font:inherit;background:none;border:0;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;cursor:pointer;border-radius:14px;font-size:.8rem}
 .tab .ico{width:26px;height:22px;display:block;transition:transform .25s}
 .tab[aria-selected="true"]{color:var(--ink);font-weight:600}
@@ -68,6 +68,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;displa
 .ico.slime{background:#ff9ec7;border-radius:55% 45% 50% 50%/60% 60% 40% 40%}
 .ico.squish{background:#fff3e6;border:2px solid #f2c9b0;border-radius:50% 50% 44% 44%/62% 62% 38% 38%}
 .ico.wrap{background:radial-gradient(circle at 30% 30%,#fff 0 18%,transparent 20%),radial-gradient(circle,#bfe0ff 0 60%,transparent 62%);background-size:11px 11px;border-radius:5px;border:1px solid #9cc7f0}
+.ico.ice{border-radius:6px;border:1px solid #8fcfe2;background:linear-gradient(140deg,#effbff 0 40%,#bfe9f5 41% 52%,#7fd0e6 53%)}
 .ico.popit{border-radius:50%;background:conic-gradient(#ff8fa3,#ffc36b,#fff07a,#8de39b,#7cc8ff,#b993ff,#ff8fa3)}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (max-width:420px){.top h1 small{display:none}}
@@ -77,7 +78,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 <body><!--shell-->
 <div class="app">
   <header class="top">
-    <h1>捏捏乐<small>史莱姆 · 捏捏 · 泡泡纸 · 波普</small></h1>
+    <h1>捏捏乐<small>史莱姆 · 冰山泥 · 捏捏 · 泡泡纸 · 波普</small></h1>
     <div class="toggles">
       <button id="sndBtn" class="tog" type="button">声音</button>
       <button id="vibBtn" class="tog" type="button">震动</button>
@@ -91,6 +92,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <div class="controls" id="controls"></div>
   <nav class="tabs" role="tablist" aria-label="玩具">
     <button class="tab" role="tab" type="button" data-mode="slime"><span class="ico slime"></span>史莱姆</button>
+    <button class="tab" role="tab" type="button" data-mode="ice"><span class="ico ice"></span>冰山泥</button>
     <button class="tab" role="tab" type="button" data-mode="squish"><span class="ico squish"></span>捏捏</button>
     <button class="tab" role="tab" type="button" data-mode="wrap"><span class="ico wrap"></span>泡泡纸</button>
     <button class="tab" role="tab" type="button" data-mode="popit"><span class="ico popit"></span>波普</button>
@@ -112,7 +114,7 @@ const store = {
 };
 const cfg = {
   snd: store.get('snd', true), vib: store.get('vib', true), mode: store.get('mode', 'slime'),
-  slime: store.get('slime', 0), glit: store.get('glit', true), squish: store.get('squish', 0)
+  slime: store.get('slime', 0), ice: store.get('ice', 0), glit: store.get('glit', true), squish: store.get('squish', 0)
 };
 
 /* ---------- 声音：全部用 Web Audio 实时合成 ---------- */
@@ -193,6 +195,27 @@ const S = {
     nz(t, 0.45, 'bandpass', 300, 2400, 1.4, 0.18, 0.15);
     [523, 659, 784, 1047].forEach((f, k) => tone(t + 0.12 + k * 0.07, 0.18, 'sine', f, f * 1.01, 0.12, 0.004));
   },
+  // 冰：极短的宽频脆响 + 高 Q 玻璃共鸣
+  iceClick(t, g) {
+    nz(t, 0.003 + rand(0.006), 'highpass', rand(2500, 6000), rand(3000, 8000), 0.8, g, 0.0005);
+    nz(t, 0.025 + rand(0.04), 'bandpass', rand(2600, 7500), rand(2400, 7000), 14, g * 0.7, 0.001);
+  },
+  crunch(n) {
+    if (!this.ok()) return; const t0 = A.ctx.currentTime;
+    nz(t0, 0.012, 'bandpass', rand(1200, 2200), rand(900, 1500), 1.8, 0.55, 0.0006);
+    nz(t0, 0.07, 'bandpass', rand(450, 800), 250, 1.4, 0.18 + n * 0.02, 0.002);
+    for (let k = 0; k < n * 3 + 2; k++) this.iceClick(t0 + rand(0.06) + k * 0.003, 0.06 + rand(0.22));
+    if (Math.random() < 0.5) tone(t0 + rand(0.05), 0.12, 'sine', rand(3800, 6500), rand(3700, 6300), 0.035, 0.001);
+  },
+  crackRun(n) {
+    if (!this.ok()) return; let t = A.ctx.currentTime + 0.01;
+    for (let k = 0; k < n; k++) { t += rand(0.004, 0.02) * (1 + k / n); this.iceClick(t, 0.04 + rand(0.16)); }
+  },
+  freeze() {
+    if (!this.ok()) return; const t = A.ctx.currentTime;
+    nz(t, 0.9, 'highpass', 3000, 9000, 0.7, 0.05, 0.4);
+    for (let k = 0; k < 10; k++) { const f = 2000 + k * 320 + rand(200); tone(t + k * 0.07 + rand(0.03), 0.25, 'sine', f, f * 1.02, 0.03, 0.002); }
+  },
   swish() {
     if (!this.ok()) return; const t = A.ctx.currentTime;
     nz(t, 0.35, 'bandpass', 2400, 500, 0.9, 0.14, 0.05);
@@ -227,7 +250,8 @@ if (!('vibrate' in navigator)) {
 }
 function buzz(ms, gap = 60) {
   if (!cfg.vib) return;
-  if (!reduceMotion) shake = Math.max(shake, Math.min(5, ms / 9));
+  const total = Array.isArray(ms) ? ms.reduce((a, v, i) => i % 2 ? a : a + v, 0) : ms;
+  if (!reduceMotion) shake = Math.max(shake, Math.min(5, total / 9));
   const t = performance.now();
   if (t - lastBuzz < gap) return;
   lastBuzz = t;
@@ -682,26 +706,276 @@ const popit = {
   controls() { return `<button class="chip act" type="button" data-flip="1">直接翻面</button><button class="chip" type="button" data-allup="1">全部弹起</button>`; }
 };
 
-const modes = { slime, squish, wrap, popit };
+/* ========== 5. 冰山泥：一层薄冰盖在史莱姆上 ========== */
+function clipPoly(poly, mx, my, nx, ny, id) {
+  const out = [];
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length];
+    const da = (a.x - mx) * nx + (a.y - my) * ny, db = (b.x - mx) * nx + (b.y - my) * ny;
+    if (da <= 0) {
+      out.push(a);
+      if (db > 0) { const t = da / (da - db); out.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, e: id }); }
+    } else if (db <= 0) { const t = da / (da - db); out.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, e: a.e }); }
+  }
+  return out;
+}
+function addPoly(P) { ctx.moveTo(P[0].x, P[0].y); for (let i = 1; i < P.length; i++) ctx.lineTo(P[i].x, P[i].y); ctx.closePath(); }
+const ice = {
+  styles: [
+    { n: '浅蓝冰山', slime: '#8fd6ea', deep: '#4fa9c8', ice: [234, 248, 252], ia: 0.93 },
+    { n: '深海蓝', slime: '#1199bb', deep: '#075d7c', ice: [214, 246, 252], ia: 0.4, oval: true },
+    { n: '薄荷冰', slime: '#7fe0c2', deep: '#34a885', ice: [236, 252, 246], ia: 0.9 },
+    { n: '樱花冰', slime: '#f6a6c6', deep: '#cf6694', ice: [255, 241, 247], ia: 0.9 },
+    { n: '葡萄冰', slime: '#b49cff', deep: '#6c52c8', ice: [240, 235, 255], ia: 0.6, oval: true }
+  ],
+  cells: [], rays: [], bits: [], bubbles: [], ptr: new Map(), tray: null, cs: 24, frost: 1, pend: 0, broken: 0, total: 1, nx: 0, ny: 0,
+  hint: '按下去压碎薄冰 · 按住越久碎得越多 · 划过去一路咔嚓',
+  style() { return this.styles[cfg.ice] || this.styles[0]; },
+  pattern() {
+    if (this.pat) return this.pat;
+    const o = document.createElement('canvas'); o.width = o.height = 160; const c = o.getContext('2d');
+    for (let i = 0; i < 900; i++) { c.fillStyle = `rgba(255,255,255,${rand(0.1, 0.6)})`; c.fillRect(rand(160), rand(160), rand(0.6, 1.8), rand(0.6, 1.8)); }
+    for (let i = 0; i < 200; i++) { c.fillStyle = `rgba(110,160,190,${rand(0.04, 0.14)})`; c.fillRect(rand(160), rand(160), rand(0.8, 2), rand(0.8, 2)); }
+    c.strokeStyle = 'rgba(255,255,255,.22)';
+    for (let i = 0; i < 14; i++) {
+      c.lineWidth = rand(0.5, 1.6); c.beginPath(); const x = rand(160), y = rand(160); c.moveTo(x, y);
+      c.bezierCurveTo(x + rand(-40, 40), y + rand(-20, 20), x + rand(-40, 40), y + rand(-20, 20), x + rand(-60, 60), y + rand(-30, 30)); c.stroke();
+    }
+    return (this.pat = ctx.createPattern(o, 'repeat'));
+  },
+  resize() {
+    const m = 16, top = 40, bottom = 14, tw = Math.min(W - m * 2, 720), th = Math.min(H - top - bottom, tw * 1.3);
+    const t = { x: (W - tw) / 2, y: top + (H - top - bottom - th) / 2, w: tw, h: th };
+    if (this.tray && Math.abs(this.tray.w - t.w) < 40 && Math.abs(this.tray.h - t.h) < 40 && Math.abs(this.tray.x - t.x) < 4 && Math.abs(this.tray.y - t.y) < 4) return;
+    this.tray = t; this.gen();
+  },
+  inTray(x, y) {
+    const t = this.tray;
+    if (this.style().oval) { const u = (x - t.x - t.w / 2) / (t.w / 2), v = (y - t.y - t.h / 2) / (t.h / 2); return u * u + v * v <= 1; }
+    return x >= t.x && x <= t.x + t.w && y >= t.y && y <= t.y + t.h;
+  },
+  gen() {
+    const t = this.tray, cs = this.cs = clamp(Math.min(t.w, t.h) / 13, 18, 32);
+    const nx = this.nx = Math.ceil(t.w / cs) + 1, ny = this.ny = Math.ceil(t.h / cs) + 1, seeds = [];
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) seeds.push({ x: t.x + (i + rand(0.08, 0.92)) * cs - cs / 2, y: t.y + (j + rand(0.08, 0.92)) * cs - cs / 2 });
+    const oval = this.style().oval;
+    this.cells = seeds.map((s, k) => {
+      const i = k % nx, j = (k / nx) | 0, r = cs * 2;
+      let P = [{ x: s.x - r, y: s.y - r, e: -1 }, { x: s.x + r, y: s.y - r, e: -1 }, { x: s.x + r, y: s.y + r, e: -1 }, { x: s.x - r, y: s.y + r, e: -1 }];
+      for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) {
+        const ii = i + di, jj = j + dj; if ((!di && !dj) || ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue;
+        const o = seeds[jj * nx + ii]; P = clipPoly(P, (s.x + o.x) / 2, (s.y + o.y) / 2, o.x - s.x, o.y - s.y, jj * nx + ii);
+      }
+      P = clipPoly(P, t.x, 0, -1, 0, -1); P = clipPoly(P, t.x + t.w, 0, 1, 0, -1); P = clipPoly(P, 0, t.y, 0, -1, -1); P = clipPoly(P, 0, t.y + t.h, 0, 1, -1);
+      let cx = 0, cy = 0; for (const v of P) { cx += v.x; cy += v.y; } cx /= P.length || 1; cy /= P.length || 1;
+      let st = P.length < 3 ? 3 : 0;
+      if (oval && st === 0) { const u = (cx - t.x - t.w / 2) / (t.w / 2 + cs * 1.2), v = (cy - t.y - t.h / 2) / (t.h / 2 + cs * 1.2); if (u * u + v * v > 1) st = 3; }
+      return { x: s.x, y: s.y, poly: P, cx, cy, st, t: 0, dx: 0, dy: 0, rot: 0, melt: 0, sh: rand() };
+    });
+    this.total = this.cells.filter(c => c.st !== 3).length || 1;
+    this.bubbles = Array.from({ length: 16 }, () => ({ x: t.x + rand(t.w), y: t.y + rand(t.h), r: rand(1.5, 6) }));
+    this.rays = []; this.bits = []; this.broken = 0; this.frost = 0;
+  },
+  cellAt(x, y) {
+    const t = this.tray, cs = this.cs, i = Math.floor((x - t.x + cs / 2) / cs), j = Math.floor((y - t.y + cs / 2) / cs);
+    let best = -1, bd = 1e18;
+    for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) {
+      const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= this.nx || jj >= this.ny) continue;
+      const k = jj * this.nx + ii, c = this.cells[k], d = (c.x - x) ** 2 + (c.y - y) ** 2; if (d < bd) { bd = d; best = k; }
+    }
+    return best;
+  },
+  near(x, y, rad, fn) {
+    const t = this.tray, cs = this.cs, i = Math.floor((x - t.x + cs / 2) / cs), j = Math.floor((y - t.y + cs / 2) / cs), sp = Math.ceil(rad / cs) + 1;
+    for (let jj = Math.max(0, j - sp); jj <= Math.min(this.ny - 1, j + sp); jj++)
+      for (let ii = Math.max(0, i - sp); ii <= Math.min(this.nx - 1, i + sp); ii++) {
+        const c = this.cells[jj * this.nx + ii], d2 = (c.x - x) ** 2 + (c.y - y) ** 2; if (d2 < rad * rad && c.st !== 3) fn(c, d2);
+      }
+  },
+  breakCell(c, px, py) {
+    c.st = 2; c.t = 0; const dx = c.cx - px, dy = c.cy - py, d = Math.hypot(dx, dy) || 1, push = rand(1, 3.5);
+    c.dx = dx / d * push; c.dy = dy / d * push + rand(0.5, 2); c.rot = rand(-0.12, 0.12);
+    this.pend++; this.broken++;
+    for (const v of c.poly) if (v.e >= 0) { const n = this.cells[v.e]; if (n.st === 0) n.st = 1; }
+    if (Math.random() < 0.5 && this.bits.length < 120) this.bits.push({ x: c.cx, y: c.cy, vx: rand(-2.2, 2.2), vy: rand(-2.6, 0.6), life: 1, s: rand(1.5, 3.5), r: rand(TAU) });
+  },
+  ray(x, y, a, len, depth) {
+    const pts = [{ x, y, k: this.cellAt(x, y) }]; let L = 0;
+    while (L < len) {
+      const s = this.cs * rand(0.3, 0.65); a += rand(-0.45, 0.45); x += Math.cos(a) * s; y += Math.sin(a) * s; L += s;
+      if (!this.inTray(x, y)) break;
+      const k = this.cellAt(x, y); pts.push({ x, y, k });
+      const c = this.cells[k]; if (c && c.st === 0) c.st = 1;
+      if (depth < 2 && Math.random() < 0.12) this.ray(x, y, a + (Math.random() < 0.5 ? -1 : 1) * rand(0.5, 1.1), (len - L) * 0.6, depth + 1);
+    }
+    if (pts.length > 1) { this.rays.push({ pts, g: 0 }); if (this.rays.length > 260) this.rays.shift(); }
+  },
+  press(x, y, r, force) {
+    let nb = 0;
+    this.near(x, y, r * 2.4, (c, d2) => {
+      if (d2 < r * r) { if (c.st < 2) { this.breakCell(c, x, y); nb++; } }
+      else if (c.st === 0 && Math.random() < 0.35) c.st = 1;
+    });
+    const n = 2 + (Math.random() * (1 + force * 2) | 0);
+    for (let q = 0; q < n; q++) this.ray(x, y, rand(TAU), this.cs * (1.5 + force * rand(2, 4.5)), 0);
+    S.crackRun(4 + (force * 8 | 0));
+    return nb;
+  },
+  trail(x, y) {
+    this.near(x, y, this.cs * 1.6, (c, d2) => {
+      if (d2 < (this.cs * 0.75) ** 2) { if (c.st < 2) this.breakCell(c, x, y); }
+      else if (c.st === 0 && Math.random() < 0.25) c.st = 1;
+    });
+    if (Math.random() < 0.15) this.ray(x, y, rand(TAU), this.cs * rand(1, 2.5), 1);
+  },
+  down(id, x, y) {
+    if (!this.tray || !this.inTray(x, y)) return;
+    this.ptr.set(id, { x, y, lx: x, ly: y, hold: 0, still: 0 });
+    const nb = this.press(x, y, this.cs * 0.85, 0.6);
+    if (!nb) S.squelch(0.15);
+    buzz(nb ? [14, 16, 18, 12, 10] : 12, 0);
+  },
+  move(id, x, y) {
+    const p = this.ptr.get(id); if (!p) return;
+    p.x = x; p.y = y;
+    const d = Math.hypot(x - p.lx, y - p.ly), step = this.cs * 0.45;
+    if (d > step) {
+      const n = Math.ceil(d / step);
+      for (let s = 1; s <= n; s++) { const qx = p.lx + (x - p.lx) * s / n, qy = p.ly + (y - p.ly) * s / n; if (this.inTray(qx, qy)) this.trail(qx, qy); }
+      p.lx = x; p.ly = y; p.still = 0;
+    }
+  },
+  up(id) { this.ptr.delete(id); },
+  refreeze() {
+    for (const c of this.cells) if (c.st !== 3) { c.st = 0; c.t = 0; c.melt = 0; }
+    this.rays = []; this.bits = []; this.broken = 0; this.frost = 0;
+    S.freeze(); buzz([10, 40, 10, 40, 10], 0); updateCounter();
+  },
+  tick() {
+    for (const p of this.ptr.values()) {
+      p.hold++; p.still++;
+      if (p.still > 14 && p.hold % 20 === 0 && p.hold < 200) {
+        const nb = this.press(p.x, p.y, this.cs * (0.85 + Math.min(1.6, p.hold / 70)), 0.3 + Math.min(1, p.hold / 120));
+        if (nb) buzz([10, 14, 14, 10, 12], 0);
+      }
+    }
+    if (this.pend > 0) { S.crunch(Math.min(this.pend, 8)); buzz(Math.min(38, 10 + this.pend * 4), 45); this.pend = 0; updateCounter(); }
+    for (const r of this.rays) if (r.g < 1) r.g = Math.min(1, r.g + 0.2);
+    for (const c of this.cells) if (c.st === 2) { if (c.t < 1) c.t = Math.min(1, c.t + 0.15); if (c.melt < 1) c.melt += 0.0015; }
+    for (const b of this.bits) { b.x += b.vx; b.y += b.vy; b.vx *= 0.9; b.vy *= 0.9; b.life -= 0.04; }
+    this.bits = this.bits.filter(b => b.life > 0);
+    if (this.frost < 1) this.frost = Math.min(1, this.frost + 0.025);
+  },
+  trayPath() {
+    const t = this.tray; ctx.beginPath();
+    if (this.style().oval) ctx.ellipse(t.x + t.w / 2, t.y + t.h / 2, t.w / 2, t.h / 2, 0, 0, TAU);
+    else if (ctx.roundRect) ctx.roundRect(t.x, t.y, t.w, t.h, Math.min(34, t.w * 0.09));
+    else ctx.rect(t.x, t.y, t.w, t.h);
+  },
+  draw() {
+    const t = this.tray; if (!t) return;
+    const st = this.style(), slime = hex(st.slime), deep = hex(st.deep), ic = st.ice, cells = this.cells, fa = this.frost;
+    ctx.save(); ctx.shadowColor = rgba(TH.shadow, 0.25); ctx.shadowBlur = 24; ctx.shadowOffsetY = 10;
+    this.trayPath(); ctx.fillStyle = rgba(deep); ctx.fill(); ctx.restore();
+    ctx.save(); this.trayPath(); ctx.clip();
+    const g = ctx.createLinearGradient(t.x, t.y, t.x + t.w * 0.4, t.y + t.h);
+    g.addColorStop(0, rgba(mix(slime, WHITE, 0.15))); g.addColorStop(1, rgba(mix(slime, deep, 0.55)));
+    ctx.fillStyle = g; ctx.fillRect(t.x, t.y, t.w, t.h);
+    for (const b of this.bubbles) {
+      ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.3, 0, TAU); ctx.fill();
+    }
+    // 沉下去的碎冰
+    const sunk = mix(ic, slime, 0.45);
+    for (const c of cells) {
+      if (c.st !== 2) continue;
+      const k = c.t, s = 1 - 0.07 * k;
+      ctx.save(); ctx.translate(c.cx + c.dx * k, c.cy + c.dy * k); ctx.rotate(c.rot * k); ctx.scale(s, s); ctx.translate(-c.cx, -c.cy);
+      ctx.beginPath(); addPoly(c.poly);
+      ctx.fillStyle = rgba(sunk, (0.55 - 0.3 * c.melt) * st.ia + 0.1); ctx.fill();
+      ctx.strokeStyle = `rgba(255,255,255,${0.4 * (1 - c.melt * 0.6)})`; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+    }
+    // 完整的冰面（一条路径填充，接缝不露线）
+    ctx.globalAlpha = fa;
+    ctx.beginPath(); for (const c of cells) if (c.st === 0 || c.st === 1) addPoly(c.poly);
+    ctx.fillStyle = rgba(ic, st.ia); ctx.fill();
+    ctx.globalAlpha = fa * (st.ia > 0.8 ? 0.9 : 0.55); ctx.fillStyle = this.pattern(); ctx.fill();
+    ctx.globalAlpha = fa;
+    for (const c of cells) if (c.st === 1) {
+      ctx.beginPath(); addPoly(c.poly);
+      ctx.fillStyle = c.sh < 0.5 ? `rgba(255,255,255,${0.16 * (0.5 - c.sh)})` : rgba(deep, 0.12 * (c.sh - 0.5)); ctx.fill();
+    }
+    // 裂缝与冰层断面
+    const thin = new Path2D(), thick = new Path2D();
+    for (let k = 0; k < cells.length; k++) {
+      const c = cells[k]; if (c.st > 1) continue; const P = c.poly;
+      for (let i = 0; i < P.length; i++) {
+        const e = P[i].e; if (e < 0) continue; const n = cells[e], a = P[i], b = P[(i + 1) % P.length];
+        if (n.st === 2) { thick.moveTo(a.x, a.y); thick.lineTo(b.x, b.y); }
+        else if (n.st !== 3 && k < e && (c.st === 1 || n.st === 1) && (k * 7919 + e * 104729) % 10 < 4) { thin.moveTo(a.x, a.y); thin.lineTo(b.x, b.y); }
+      }
+    }
+    ctx.lineCap = 'round';
+    ctx.save(); ctx.translate(1.2, 1.8); ctx.strokeStyle = rgba(deep, 0.45); ctx.lineWidth = 3; ctx.stroke(thick); ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 2.2; ctx.stroke(thick);
+    ctx.save(); ctx.translate(0.7, 0.7); ctx.strokeStyle = rgba(deep, 0.3); ctx.lineWidth = 0.7; ctx.stroke(thin); ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1; ctx.stroke(thin);
+    const rp = new Path2D();
+    for (const r of this.rays) {
+      const n = Math.ceil(r.g * (r.pts.length - 1)); rp.moveTo(r.pts[0].x, r.pts[0].y);
+      for (let i = 1; i <= n; i++) {
+        const p = r.pts[i], q = r.pts[i - 1], cp = cells[p.k], cq = cells[q.k];
+        if ((cp && cp.st === 2) || (cq && cq.st === 2)) rp.moveTo(p.x, p.y); else rp.lineTo(p.x, p.y);
+      }
+    }
+    ctx.save(); ctx.translate(0.6, 0.8); ctx.strokeStyle = rgba(deep, 0.28); ctx.lineWidth = 0.8; ctx.stroke(rp); ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.1; ctx.stroke(rp);
+    ctx.globalAlpha = 1;
+    // 表面反光
+    const lg = ctx.createLinearGradient(t.x, t.y, t.x + t.w, t.y + t.h);
+    lg.addColorStop(0.12, 'rgba(255,255,255,0)'); lg.addColorStop(0.28, 'rgba(255,255,255,.16)'); lg.addColorStop(0.4, 'rgba(255,255,255,0)');
+    ctx.fillStyle = lg; ctx.fillRect(t.x, t.y, t.w, t.h);
+    for (const p of this.ptr.values()) {
+      const pr = this.cs * (1.3 + Math.min(1.2, p.hold / 90)), fg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, pr);
+      fg.addColorStop(0, rgba(deep, 0.22)); fg.addColorStop(1, rgba(deep, 0)); ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(p.x, p.y, pr, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+    // 玻璃盘边
+    this.trayPath(); ctx.lineWidth = 7; ctx.strokeStyle = rgba(mix(deep, WHITE, 0.3), 0.55); ctx.stroke();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.stroke();
+    for (const b of this.bits) {
+      ctx.fillStyle = `rgba(255,255,255,${b.life})`; ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.r);
+      ctx.beginPath(); ctx.moveTo(0, -b.s); ctx.lineTo(b.s, b.s * 0.7); ctx.lineTo(-b.s * 0.8, b.s * 0.5); ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+  },
+  controls() {
+    return this.styles.map((s, i) => `<button class="chip${i === cfg.ice ? ' sel' : ''}" type="button" data-ice="${i}"><i style="background:linear-gradient(135deg,${rgba(s.ice)} 0 45%,${s.slime} 46%)"></i>${s.n}</button>`).join('')
+      + `<button class="chip act" type="button" data-freeze="1">重新结冰</button>`;
+  }
+};
+
+const modes = { slime, ice, squish, wrap, popit };
 slime.init(); squish.init();
+const hashMode = location.hash.slice(1);
+if (modes[hashMode]) cfg.mode = hashMode;
 if (!modes[cfg.mode]) cfg.mode = 'slime';
 
 /* ---------- 界面 ---------- */
 const $ = s => document.querySelector(s);
 const hintEl = $('#hint'), counterEl = $('#counter'), controlsEl = $('#controls');
 const sndBtn = $('#sndBtn'), vibBtn = $('#vibBtn');
-function updateCounter() { counterEl.textContent = `已捏爆 ${wrap.count} 个`; }
+function updateCounter() { counterEl.textContent = cfg.mode === 'ice' ? `冰面碎了 ${Math.round(ice.broken / ice.total * 100)}%` : `已捏爆 ${wrap.count} 个`; }
 function syncToggles() {
   sndBtn.classList.toggle('on', cfg.snd); sndBtn.setAttribute('aria-pressed', cfg.snd);
   vibBtn.classList.toggle('on', cfg.vib); vibBtn.setAttribute('aria-pressed', cfg.vib);
 }
 function setMode(m) {
   const prev = modes[cfg.mode];
-  if (prev) { prev.b && prev.b.grabs.clear(); prev.presses && prev.presses.clear(); }
+  if (prev) { prev.b && prev.b.grabs.clear(); prev.presses && prev.presses.clear(); prev.ptr && prev.ptr.clear && prev !== wrap && prev.ptr.clear(); }
   silenceLoops();
   cfg.mode = m; store.set('mode', m);
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.mode === m));
-  const showCount = m === 'wrap';
+  const showCount = m === 'wrap' || m === 'ice';
   counterEl.hidden = !showCount; hintEl.hidden = showCount; updateCounter();
   hintEl.textContent = modes[m].hint; hintEl.classList.remove('fade');
   controlsEl.innerHTML = modes[m].controls();
@@ -717,6 +991,8 @@ controlsEl.addEventListener('click', e => {
   if (d.glit) { cfg.glit = !cfg.glit; store.set('glit', cfg.glit); S.crackle(10, 0.15); }
   if (d.reset) slime.reset();
   if (d.squish) { cfg.squish = +d.squish; store.set('squish', cfg.squish); squish.sq = 0.6; S.puff(0.6); buzz(12, 0); }
+  if (d.ice) { cfg.ice = +d.ice; store.set('ice', cfg.ice); ice.gen(); S.freeze(); buzz(12, 0); updateCounter(); }
+  if (d.freeze) ice.refreeze();
   if (d.refill) wrap.refill();
   if (d.zero) { wrap.count = 0; store.set('popped', 0); updateCounter(); }
   if (d.flip) popit.doFlip();
