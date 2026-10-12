@@ -239,15 +239,24 @@ function loopSet(name, type, Q, level, freq) {
 function silenceLoops() { for (const k in loops) loopSet(k, '', 0, 0); }
 
 /* ---------- 震动：安卓用 vibrate，iOS 18+ 用开关控件触发触感 ---------- */
-let iosTap = null, lastBuzz = 0, shake = 0;
-if (!('vibrate' in navigator)) {
-  const l = document.createElement('label'), i = document.createElement('input');
-  l.setAttribute('aria-hidden', 'true');
-  l.style.cssText = 'position:fixed;left:-200px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none';
-  i.type = 'checkbox'; i.setAttribute('switch', ''); i.tabIndex = -1;
-  l.appendChild(i); document.body.appendChild(l);
-  iosTap = () => l.click();
+let iosTap = null, iosPending = false, lastIos = 0, lastBuzz = 0, shake = 0;
+if (typeof navigator.vibrate !== 'function') {
+  // iOS 只在手指触摸的事件里才肯触发开关控件的触感，所以每次新建一个开关点一下
+  iosTap = () => {
+    const l = document.createElement('label'), i = document.createElement('input');
+    l.setAttribute('aria-hidden', 'true'); l.style.display = 'none';
+    i.type = 'checkbox'; i.setAttribute('switch', '');
+    l.appendChild(i); document.head.appendChild(l);
+    l.click(); l.remove();
+  };
 }
+// 在触摸事件里调用：把动画帧里攒下的震动补上
+function flushHaptic() {
+  if (!iosTap || !iosPending || !cfg.vib) return;
+  const t = performance.now(); if (t - lastIos < 45) return;
+  iosPending = false; lastIos = t; iosTap();
+}
+let inGesture = false;
 function buzz(ms, gap = 60) {
   if (!cfg.vib) return;
   const total = Array.isArray(ms) ? ms.reduce((a, v, i) => i % 2 ? a : a + v, 0) : ms;
@@ -255,8 +264,13 @@ function buzz(ms, gap = 60) {
   const t = performance.now();
   if (t - lastBuzz < gap) return;
   lastBuzz = t;
-  if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) {} }
-  else if (iosTap) iosTap();
+  if (navigator.vibrate && !iosTap) { try { navigator.vibrate(ms); } catch (e) {} }
+  else if (iosTap) { iosPending = true; if (inGesture) flushHaptic(); }
+}
+// 每个触摸/点击事件：开头标记“手指正在操作”，所有处理跑完后补上攒下的震动
+for (const type of ['pointerdown', 'pointermove', 'pointerup', 'click', 'touchstart', 'touchmove', 'touchend']) {
+  document.addEventListener(type, () => { inGesture = true; }, { capture: true, passive: true });
+  window.addEventListener(type, () => { flushHaptic(); inGesture = false; }, { passive: true });
 }
 
 /* ---------- 画布 ---------- */
